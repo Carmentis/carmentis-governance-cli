@@ -19,15 +19,19 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             output: carmentis-governance-linux-x64
+            archive: carmentis-governance-linux-x64.tar.gz
           - os: macos-latest
             target: x86_64-apple-darwin
             output: carmentis-governance-macos-x64
+            archive: carmentis-governance-macos-x64.tar.gz
           - os: macos-latest
             target: aarch64-apple-darwin
             output: carmentis-governance-macos-arm64
+            archive: carmentis-governance-macos-arm64.tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             output: carmentis-governance-windows-x64.exe
+            archive: carmentis-governance-windows-x64.zip
 
     steps:
       - name: Checkout code
@@ -40,7 +44,25 @@ jobs:
 
       - name: Build binary
         run: |
-          deno run compile:all
+          deno compile --allow-net --allow-env --output ${{ matrix.output }} --target ${{ matrix.target }} src/index.ts
+
+      - name: Create archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x ${{ matrix.output }}
+          tar -czf ${{ matrix.archive }} ${{ matrix.output }}
+
+      - name: Create archive (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Compress-Archive -Path ${{ matrix.output }} -DestinationPath ${{ matrix.archive }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+          retention-days: 1
 
   release:
     name: Create Release
@@ -53,14 +75,28 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: dist
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(cat deno.json | grep -oP '"version":\s*"\K[^"]+')
+          echo "version=v${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*
+          files: release/*
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
-          generate_release_notes: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
