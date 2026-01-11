@@ -1,0 +1,16 @@
+{
+  "name": "carmentis-governance-cli",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@cmts-dev/carmentis-sdk": "^1.15.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3"
+  },
+  "private": true
+}

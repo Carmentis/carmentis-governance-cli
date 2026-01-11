@@ -1,0 +1,22 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@std/cli@*": "1.0.25"
+  },
+  "jsr": {
+    "@std/cli@1.0.25": {
+      "integrity": "1f85051b370c97a7a9dfc6ba626e7ed57a91bea8c081597276d1e78d929d8c91"
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@std/cli@1"
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:@cmts-dev/carmentis-sdk@^1.15.0",
+        "npm:typescript@^5.5.3"
+      ]
+    }
+  }
+}

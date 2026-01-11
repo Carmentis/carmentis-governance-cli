@@ -1,0 +1,23 @@
+{
+  "name": "@carmentis/governance-cli",
+  "version": "1.0.0",
+  "exports": "./src/index.ts",
+  "tasks": {
+    "start": "deno run --allow-net --allow-env src/index.ts",
+    "dev": "deno run --allow-net --allow-env --watch src/index.ts",
+    "compile:linux": "deno compile --allow-net --allow-env --output dist/carmentis-governance-linux-x64 --target x86_64-unknown-linux-gnu src/index.ts",
+    "compile:macos": "deno compile --allow-net --allow-env --output dist/carmentis-governance-macos-x64 --target x86_64-apple-darwin src/index.ts",
+    "compile:macos-arm": "deno compile --allow-net --allow-env --output dist/carmentis-governance-macos-arm64 --target aarch64-apple-darwin src/index.ts",
+    "compile:windows": "deno compile --allow-net --allow-env --output dist/carmentis-governance-windows-x64.exe --target x86_64-pc-windows-msvc src/index.ts",
+    "compile:all": "deno task compile:linux && deno task compile:macos && deno task compile:macos-arm && deno task compile:windows"
+  },
+  "imports": {
+    "@std/cli": "jsr:@std/cli@^1.0.0"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
+}
