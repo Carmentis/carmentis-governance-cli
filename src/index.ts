@@ -1,13 +1,19 @@
 #!/usr/bin/env -S deno run --allow-net --allow-env
 
 import {parseArgs} from "jsr:@std/cli/parse-args";
-import {ProviderFactory} from "@cmts-dev/carmentis-sdk/client";
+import {
+	BalanceAvailability, CryptoEncoderFactory,
+	FeesCalculationFormulaFactory,
+	Hash, PrivateSignatureKey,
+	ProviderFactory,
+	SectionType
+} from "@cmts-dev/carmentis-sdk/client";
 
 
 const PRIVATE_KEY_ENV = "CARMENTIS_PRIVATE_KEY";
 
-/*
-async function getPrivateKey(): Promise<PrivateSignatureKey> {
+
+async function getGovernancePrivateKey(): Promise<PrivateSignatureKey> {
   const encodedKey = Deno.env.get(PRIVATE_KEY_ENV);
   if (!encodedKey) {
     console.error(`Error: ${PRIVATE_KEY_ENV} environment variable is not set`);
@@ -16,8 +22,6 @@ async function getPrivateKey(): Promise<PrivateSignatureKey> {
   const encoder = CryptoEncoderFactory.defaultStringSignatureEncoder();
   return await encoder.decodePrivateKey(encodedKey);
 }
-
- */
 
 async function listValidators(rpcUrl: string): Promise<void> {
   try {
@@ -34,14 +38,23 @@ async function listValidators(rpcUrl: string): Promise<void> {
     let index = 0;
     for (const validator of validators) {
       const vb = await client.loadValidatorNodeVirtualBlockchain(validator);
+	  const orgId = await vb.getOrganizationId();
+	  const orgVb = await client.loadOrganizationVirtualBlockchain(orgId);
+	  const accountId = orgVb.getAccountId();
+	  const accountState = await client.getAccountState(accountId.toBytes());
+	  const breakdown = BalanceAvailability.createFromAccountStateAbciResponse(accountState);
+	  const stacked = breakdown.getStaked();
       const internalState = vb.getInternalState();
       const pk = await vb.getCometbftPublicKeyDeclaration();
       const isApproved = internalState.getLastKnownApprovalStatus();
 
 
-      console.log(`\n${index + 1}. Address: ${validator.encode()}`);
+      console.log(`\n${index + 1}. Validator node ID: ${validator.encode()}`);
       console.log(`   Status: ${isApproved ? "✓ Approved" : "✗ Not Approved"}`);
-      console.log(`   Pubic key: ${pk.cometbftPublicKey} (${pk.cometbftPublicKeyType})`);
+	  console.log(`   Organization ID: ${orgId.encode()}`);
+	  console.log(`   Account ID: ${accountId.encode()}`);
+	  console.log(`   CometBFT Public Key: ${pk.cometbftPublicKey} (${pk.cometbftPublicKeyType})`)
+	  console.log(`   Stacked: ${stacked.toString()}`);
       index++;
     }
     console.log();
@@ -55,39 +68,83 @@ async function listValidators(rpcUrl: string): Promise<void> {
   }
 }
 
-async function approveValidator(address: string): Promise<void> {
-  //const privateKey = await getPrivateKey();
-  //const publicKey = await privateKey.getPublicKey();
-  try {
-    //const client = await ProviderFactory.createInMemoryProviderWithExternalProvider(rpcUrl);
-    console.log(`Approving validator: ${address}...`);
-    //const governanceVbId = await client.getAccountIdFromPublicKey(publicKey);
-    //const governanceVb = await client.loadAccountVirtualBlockchain(governanceVbId);
-    // TODO: Implement approval logic
-    console.warn("Approval not implemented yet...")
+/**
+ * To approve a validator node, we need to have the validator node identifier of the node.
+ * We (the governance) will write an approval directly on the validator node virtual blockchain.
+ * @param validatorNodeId
+ */
+async function approveValidator(rpcUrl: string, validatorNodeId: string): Promise<void> {
+	console.log(`Approving validator node with ID ${validatorNodeId} at ${rpcUrl}...`)
 
-    console.log(`✓ Validator approved successfully`);
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error approving validator:", error.message);
-    }
-    Deno.exit(1);
-  }
+	// we recover the governance private signature key and the governance account ID
+	console.log("Recovering governance account...")
+	const client = ProviderFactory.createInMemoryProviderWithExternalProvider(rpcUrl);
+	const governancePrivateKey = await getGovernancePrivateKey();
+	const governancePublicKey = await governancePrivateKey.getPublicKey();
+	const governanceAccountId = await client.getAccountIdByPublicKey(governancePublicKey)
+
+
+	// we recover the validator node virtual blockchain and append the approval microblock
+	const validatorNodeVb = await client.loadValidatorNodeVirtualBlockchain(Hash.from(validatorNodeId));
+	const mb = await validatorNodeVb.createMicroblock();
+	mb.addSection({
+		type: SectionType.VN_APPROVAL,
+		status: true,
+	});
+
+	// we compute the gas to get a conform microblock
+	const protocolVariables = await client.getProtocolVariables();
+	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
+	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
+	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);
+	mb.setGas(gas);
+
+	// we seal the microblock
+	console.log("Sealing approval microblock...")
+	await mb.seal(governancePrivateKey, {
+		feesPayerAccount: governanceAccountId
+	});
+
+	// publish the microblock
+	console.log("Publishing approval microblock...")
+	await client.publishMicroblock(mb);
 }
 
-async function revokeValidator(): Promise<void> {
+async function revokeValidator(rpcUrl: string, validatorNodeId: string): Promise<void> {
+	console.log(`Revoking validator node with ID ${validatorNodeId} at ${rpcUrl}...`)
 
-  try {
-    // TODO: Implement approval logic
-    console.warn("Approval not implemented yet...")
+	// we recover the governance private signature key and the governance account ID
+	console.log("Recovering governance account...")
+	const client = ProviderFactory.createInMemoryProviderWithExternalProvider(rpcUrl);
+	const governancePrivateKey = await getGovernancePrivateKey();
+	const governancePublicKey = await governancePrivateKey.getPublicKey();
+	const governanceAccountId = await client.getAccountIdByPublicKey(governancePublicKey)
 
-    console.log(`✓ Validator revoked successfully`);
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error revoking validator:", error.message);
-    }
-    Deno.exit(1);
-  }
+
+	// we recover the validator node virtual blockchain and append the approval microblock
+	const validatorNodeVb = await client.loadValidatorNodeVirtualBlockchain(Hash.from(validatorNodeId));
+	const mb = await validatorNodeVb.createMicroblock();
+	mb.addSection({
+		type: SectionType.VN_APPROVAL,
+		status: false,
+	});
+
+	// we compute the gas to get a conform microblock
+	const protocolVariables = await client.getProtocolVariables();
+	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
+	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
+	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);
+	mb.setGas(gas);
+
+	// we seal the microblock
+	console.log("Sealing approval microblock...")
+	await mb.seal(governancePrivateKey, {
+		feesPayerAccount: governanceAccountId
+	});
+
+	// publish the microblock
+	console.log("Publishing approval microblock...")
+	await client.publishMicroblock(mb);
 }
 
 function printHelp(): void {
@@ -151,7 +208,7 @@ async function main() {
         console.log("Usage: carmentis-governance approve <address>");
         Deno.exit(1);
       }
-      await approveValidator(address);
+      await approveValidator(rpcUrl, address);
       break;
     }
 
@@ -162,7 +219,7 @@ async function main() {
         console.log("Usage: carmentis-governance revoke <address>");
         Deno.exit(1);
       }
-      await revokeValidator();
+      await revokeValidator(rpcUrl, address);
       break;
     }
 
