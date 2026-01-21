@@ -2,12 +2,16 @@
 
 import {parseArgs} from "jsr:@std/cli/parse-args";
 import {
-	BalanceAvailability, CryptoEncoderFactory,
+	BalanceAvailability,
+	CryptoEncoderFactory,
 	FeesCalculationFormulaFactory,
-	Hash, PrivateSignatureKey,
+	Hash,
+	PrivateSignatureKey,
+	ProtocolUpdateSchema,
 	ProviderFactory,
 	SectionType
 } from "@cmts-dev/carmentis-sdk/client";
+import * as v from 'valibot';
 
 
 const PRIVATE_KEY_ENV = "CARMENTIS_PRIVATE_KEY";
@@ -147,6 +151,83 @@ async function revokeValidator(rpcUrl: string, validatorNodeId: string): Promise
 	await client.publishMicroblock(mb);
 }
 
+
+async function listProtocolVariables(rpcUrl: string): Promise<void> {
+	const client = ProviderFactory.createInMemoryProviderWithExternalProvider(rpcUrl);
+	const protocolVariables = await client.getProtocolVariables();
+	console.log(protocolVariables);
+}
+
+async function updateProtocol(rpcUrl: string, protocolUpdateFile: string) {
+	// we recover the governance private signature key and the governance account ID
+	console.log("Recovering governance account...")
+	const client = ProviderFactory.createInMemoryProviderWithExternalProvider(rpcUrl);
+	const governancePrivateKey = await getGovernancePrivateKey();
+	const governancePublicKey = await governancePrivateKey.getPublicKey();
+	const governanceAccountId = await client.getAccountIdByPublicKey(governancePublicKey)
+
+	// load the content of the protocol update file
+	// that should be a JSON file
+	const protocolUpdateFileContent = await Deno.readTextFile(protocolUpdateFile);
+	const unverifiedProtocolUpdateFileContent = JSON.parse(protocolUpdateFileContent);
+	const protocolUpdateParseResult = v.safeParse(ProtocolUpdateSchema, unverifiedProtocolUpdateFileContent, {
+
+	})
+
+	if (!protocolUpdateParseResult.success) {
+		console.error(`Error: Invalid protocol update file content:`);
+		for (const issue of protocolUpdateParseResult.issues) {
+			console.error(`  - ${issue.message}`);
+		}
+
+		// ask if continue even if parse failure
+		const continueAnyway = prompt("\nValidation failed. Continue anyway? (yes/no): ");
+		if (continueAnyway?.toLowerCase() !== "yes") {
+			console.log("Aborted.");
+			Deno.exit(1);
+		}
+	}
+
+	let protocolUpdate = protocolUpdateParseResult.output || unverifiedProtocolUpdateFileContent;
+
+	// ask the confirmation before publishing the protocol update
+	console.log("\nProtocol update to be published:");
+	console.log(JSON.stringify(protocolUpdate, null, 2));
+	const confirmation = prompt("\nDo you want to publish this protocol update? (yes/no): ");
+	if (confirmation?.toLowerCase() !== "yes") {
+		console.log("Aborted.");
+		Deno.exit(0);
+	}
+
+	// publish the protocol update
+	const protocolId = await client.getProtocolVirtualBlockchainId();
+	const protocolVb = await client.loadProtocolVirtualBlockchain(protocolId);
+	const mb = await protocolVb.createMicroblock();
+	mb.addSection({
+		type: SectionType.PROTOCOL_UPDATE,
+		...protocolUpdate
+	})
+
+
+	// we compute the gas to get a conform microblock
+	const protocolVariables = await client.getProtocolVariables();
+	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
+	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
+	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);
+	mb.setGas(gas);
+
+	// we seal the microblock
+	console.log("Sealing approval microblock...")
+	await mb.seal(governancePrivateKey, {
+		feesPayerAccount: governanceAccountId
+	});
+
+	// publishing the protocol update
+	console.log("Publishing protocol update...")
+	await client.publishMicroblock(mb);
+
+}
+
 function printHelp(): void {
   console.log(`
 Carmentis Governance CLI
@@ -222,6 +303,22 @@ async function main() {
       await revokeValidator(rpcUrl, address);
       break;
     }
+
+	case "protocol-variables": {
+		await listProtocolVariables(rpcUrl);
+		break;
+	}
+
+	case 'update-protocol': {
+		const variablesProtocolUpdateFile = args._[1] as string;
+		if (!variablesProtocolUpdateFile) {
+			console.error("Error: Address is required for revoke command");
+			console.log("Usage: carmentis-governance update-protocol <file>");
+			Deno.exit(1);
+		}
+		await updateProtocol(rpcUrl, variablesProtocolUpdateFile);
+		break;
+	}
 
     default:
       console.error(`Error: Unknown command '${command}'`);
