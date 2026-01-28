@@ -2,7 +2,7 @@
 
 import {parseArgs} from "jsr:@std/cli/parse-args";
 import {
-	BalanceAvailability,
+	BalanceAvailability, CMTSToken,
 	CryptoEncoderFactory,
 	FeesCalculationFormulaFactory,
 	Hash,
@@ -42,12 +42,14 @@ async function listValidators(rpcUrl: string): Promise<void> {
     let index = 0;
     for (const validator of validators) {
       const vb = await client.loadValidatorNodeVirtualBlockchain(validator);
+	  const rpcEndpoint = await vb.getRpcEndpointDeclaration();
 	  const orgId = await vb.getOrganizationId();
 	  const orgVb = await client.loadOrganizationVirtualBlockchain(orgId);
 	  const accountId = orgVb.getAccountId();
 	  const accountState = await client.getAccountState(accountId.toBytes());
 	  const breakdown = BalanceAvailability.createFromAccountStateAbciResponse(accountState);
 	  const stacked = breakdown.getStaked();
+	  const stackedForThisNode = breakdown.getNodeStakingLock(validator.toBytes());
       const internalState = vb.getInternalState();
       const pk = await vb.getCometbftPublicKeyDeclaration();
       const isApproved = internalState.getLastKnownApprovalStatus();
@@ -56,9 +58,14 @@ async function listValidators(rpcUrl: string): Promise<void> {
       console.log(`\n${index + 1}. Validator node ID: ${validator.encode()}`);
       console.log(`   Status: ${isApproved ? "✓ Approved" : "✗ Not Approved"}`);
 	  console.log(`   Organization ID: ${orgId.encode()}`);
+		console.log(`   Stacked by the organization: ${stacked.toString()}`);
+		console.log(`   Stacked for this node: ${stackedForThisNode ? 
+			CMTSToken.createAtomic(stackedForThisNode.lockedAmountInAtomics).toString() :
+			CMTSToken.zero().toString()
+		}`);
 	  console.log(`   Account ID: ${accountId.encode()}`);
 	  console.log(`   CometBFT Public Key: ${pk.cometbftPublicKey} (${pk.cometbftPublicKeyType})`)
-	  console.log(`   Stacked: ${stacked.toString()}`);
+		console.log(`   RPC Endpoint: ${rpcEndpoint}`)
       index++;
     }
     console.log();
@@ -97,7 +104,7 @@ async function approveValidator(rpcUrl: string, validatorNodeId: string): Promis
 	});
 
 	// we compute the gas to get a conform microblock
-	const protocolVariables = await client.getProtocolVariables();
+	const protocolVariables = await client.getProtocolState();
 	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
 	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
 	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);
@@ -134,7 +141,7 @@ async function revokeValidator(rpcUrl: string, validatorNodeId: string): Promise
 	});
 
 	// we compute the gas to get a conform microblock
-	const protocolVariables = await client.getProtocolVariables();
+	const protocolVariables = await client.getProtocolState();
 	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
 	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
 	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);
@@ -154,7 +161,7 @@ async function revokeValidator(rpcUrl: string, validatorNodeId: string): Promise
 
 async function listProtocolVariables(rpcUrl: string): Promise<void> {
 	const client = ProviderFactory.createInMemoryProviderWithExternalProvider(rpcUrl);
-	const protocolVariables = await client.getProtocolVariables();
+	const protocolVariables = await client.getProtocolState();
 	console.log(protocolVariables);
 }
 
@@ -210,7 +217,7 @@ async function updateProtocol(rpcUrl: string, protocolUpdateFile: string) {
 
 
 	// we compute the gas to get a conform microblock
-	const protocolVariables = await client.getProtocolVariables();
+	const protocolVariables = await client.getProtocolState();
 	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
 	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
 	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);

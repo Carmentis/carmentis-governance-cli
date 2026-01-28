@@ -7,7 +7,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@cmts-dev/carmentis-sdk": "^1.15.0",
+    "@cmts-dev/carmentis-sdk": "^1.18.1",
     "valibot": "^1.2.0"
   },
   "devDependencies": {
