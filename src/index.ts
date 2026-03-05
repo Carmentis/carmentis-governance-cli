@@ -4,7 +4,6 @@ import {parseArgs} from "jsr:@std/cli/parse-args";
 import {
 	BalanceAvailability, CMTSToken,
 	CryptoEncoderFactory,
-	FeesCalculationFormulaFactory,
 	Hash,
 	PrivateSignatureKey,
 	ProtocolUpdateSchema,
@@ -104,11 +103,12 @@ async function approveValidator(rpcUrl: string, validatorNodeId: string): Promis
 	});
 
 	// we compute the gas to get a conform microblock
-	const protocolVariables = await client.getProtocolState();
-	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
-	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
-	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);
-	mb.setGas(gas);
+	mb.setGasPrice(CMTSToken.createAtomic(1))
+	const fees = await client.computeMicroblockFees(mb, {
+		signatureSchemeId: governancePrivateKey.getSignatureSchemeId(),
+	})
+	mb.setMaxFees(fees);
+
 
 	// we seal the microblock
 	console.log("Sealing approval microblock...")
@@ -141,11 +141,19 @@ async function revokeValidator(rpcUrl: string, validatorNodeId: string): Promise
 	});
 
 	// we compute the gas to get a conform microblock
+	mb.setGasPrice(CMTSToken.createAtomic(1))
+	const fees = await client.computeMicroblockFees(mb, {
+		signatureSchemeId: governancePrivateKey.getSignatureSchemeId(),
+	})
+	mb.setMaxFees(fees);
+	/*
 	const protocolVariables = await client.getProtocolState();
 	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
 	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
 	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);
 	mb.setGas(gas);
+
+	 */
 
 	// we seal the microblock
 	console.log("Sealing approval microblock...")
@@ -217,11 +225,19 @@ async function updateProtocol(rpcUrl: string, protocolUpdateFile: string) {
 
 
 	// we compute the gas to get a conform microblock
+	mb.setGasPrice(CMTSToken.createAtomic(1))
+	const fees = await client.computeMicroblockFees(mb, {
+		signatureSchemeId: governancePrivateKey.getSignatureSchemeId(),
+	})
+	mb.setMaxFees(fees);
+	/*
 	const protocolVariables = await client.getProtocolState();
 	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
 	const feesCalculation = FeesCalculationFormulaFactory.getFeesCalculationFormulaByVersion(feesCalculationVersion);
 	const gas = await feesCalculation.computeFees(governancePrivateKey.getSignatureSchemeId(), mb);
 	mb.setGas(gas);
+
+	 */
 
 	// we seal the microblock
 	console.log("Sealing approval microblock...")
