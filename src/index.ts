@@ -9,7 +9,7 @@ import {
 	ProtocolUpdateSchema,
 	ProviderFactory,
 	SectionType
-} from "@cmts-dev/carmentis-sdk/client";
+} from "@cmts-dev/carmentis-sdk-core";
 import * as v from 'valibot';
 
 
@@ -103,11 +103,11 @@ async function approveValidator(rpcUrl: string, validatorNodeId: string): Promis
 	});
 
 	// we compute the gas to get a conform microblock
-	mb.setGasPrice(CMTSToken.createAtomic(1))
-	const fees = await client.computeMicroblockFees(mb, {
+	const fees = await client.computeMicroblockGas(mb, {
 		signatureSchemeId: governancePrivateKey.getSignatureSchemeId(),
 	})
-	mb.setMaxFees(fees);
+	mb.setGasPrice(CMTSToken.createMilliToken(1))
+	mb.setGas(fees);
 
 
 	// we seal the microblock
@@ -142,10 +142,11 @@ async function revokeValidator(rpcUrl: string, validatorNodeId: string): Promise
 
 	// we compute the gas to get a conform microblock
 	mb.setGasPrice(CMTSToken.createAtomic(1))
-	const fees = await client.computeMicroblockFees(mb, {
+	const fees = await client.computeMicroblockGas(mb, {
 		signatureSchemeId: governancePrivateKey.getSignatureSchemeId(),
 	})
-	mb.setMaxFees(fees);
+	mb.setGasPrice(CMTSToken.createMilliToken(1))
+	mb.setGas(fees);
 	/*
 	const protocolVariables = await client.getProtocolState();
 	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
@@ -225,11 +226,11 @@ async function updateProtocol(rpcUrl: string, protocolUpdateFile: string) {
 
 
 	// we compute the gas to get a conform microblock
-	mb.setGasPrice(CMTSToken.createAtomic(1))
-	const fees = await client.computeMicroblockFees(mb, {
+	const fees = await client.computeMicroblockGas(mb, {
 		signatureSchemeId: governancePrivateKey.getSignatureSchemeId(),
 	})
-	mb.setMaxFees(fees);
+	mb.setGasPrice(CMTSToken.createMilliToken(1))
+	mb.setGas(fees);
 	/*
 	const protocolVariables = await client.getProtocolState();
 	const feesCalculationVersion = protocolVariables.getFeesCalculationVersion();
