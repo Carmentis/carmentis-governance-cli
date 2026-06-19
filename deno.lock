@@ -4,7 +4,7 @@
     "jsr:@std/cli@1": "1.0.29",
     "jsr:@std/fmt@^1.0.10": "1.0.10",
     "jsr:@std/internal@^1.0.13": "1.0.13",
-    "npm:@cmts-dev/carmentis-sdk-core@^1.2.26": "1.2.26_typescript@5.9.3",
+    "npm:@cmts-dev/carmentis-sdk-core@^1.2.27": "1.2.27_typescript@5.9.3",
     "npm:typescript@^5.5.3": "5.9.3",
     "npm:valibot@^1.2.0": "1.4.1_typescript@5.9.3"
   },
@@ -54,8 +54,8 @@
       "os": ["win32"],
       "cpu": ["x64"]
     },
-    "@cmts-dev/carmentis-sdk-core@1.2.26_typescript@5.9.3": {
-      "integrity": "sha512-z8lTAlkkUva8js57CTp63oQS75JTSL33+zlQGgORhOeVqKQcRxtXDaMuGjW2o+RI+0S2zYDfuyvNoDdyVmevXg==",
+    "@cmts-dev/carmentis-sdk-core@1.2.27_typescript@5.9.3": {
+      "integrity": "sha512-r/UeXo5TqJDmha1nQEmDQo2f2N0gAvYsKeyQtWqVVC4m5O+2pKh2ZKM/D0VCCwhvXpTLb+ldJAraoJwVeITk8Q==",
       "dependencies": [
         "@logtape/logtape",
         "@noble/ciphers",
@@ -148,7 +148,7 @@
     ],
     "packageJson": {
       "dependencies": [
-        "npm:@cmts-dev/carmentis-sdk-core@^1.2.26",
+        "npm:@cmts-dev/carmentis-sdk-core@^1.2.27",
         "npm:typescript@^5.5.3",
         "npm:valibot@^1.2.0"
       ]
