@@ -2,7 +2,7 @@
 
 import { parseArgs } from "jsr:@std/cli/parse-args";
 import {
-	BalanceAvailability, CMTSToken,
+	CMTSToken,
 	CryptoEncoderFactory,
 	Hash,
 	PrivateSignatureKey,
@@ -26,7 +26,8 @@ async function getGovernancePrivateKey(): Promise<PrivateSignatureKey> {
 	return await encoder.decodePrivateKey(encodedKey);
 }
 
-async function listValidators(rpcUrl: string): Promise<void> {
+async function listValidators(_rpcUrl: string): Promise<void> {
+	/*
 	try {
 		const client = await ProviderFactory.createInMemoryProviderWithExternalProvider(rpcUrl);
 		const validators = await client.getAllValidatorNodes();
@@ -76,6 +77,8 @@ async function listValidators(rpcUrl: string): Promise<void> {
 		}
 		Deno.exit(1);
 	}
+
+	 */
 }
 
 /**

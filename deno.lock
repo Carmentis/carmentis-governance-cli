@@ -4,6 +4,7 @@
     "jsr:@std/cli@*": "1.0.25",
     "jsr:@std/cli@1": "1.0.25",
     "jsr:@std/internal@^1.0.12": "1.0.12",
+    "npm:@cmts-dev/carmentis-sdk-core@^1.2.26": "1.2.26_typescript@5.9.3",
     "npm:typescript@^5.5.3": "5.9.3",
     "npm:valibot@^1.2.0": "1.2.0_typescript@5.9.3"
   },
@@ -143,7 +144,7 @@
     ],
     "packageJson": {
       "dependencies": [
-        "npm:@cmts-dev/carmentis-sdk-core@^1.2.23",
+        "npm:@cmts-dev/carmentis-sdk-core@^1.2.4",
         "npm:typescript@^5.5.3",
         "npm:valibot@^1.2.0"
       ]
