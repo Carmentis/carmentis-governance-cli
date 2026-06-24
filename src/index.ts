@@ -189,9 +189,7 @@ async function updateProtocol(rpcUrl: string, protocolUpdateFile: string) {
 	// that should be a JSON file
 	const protocolUpdateFileContent = await Deno.readTextFile(protocolUpdateFile);
 	const unverifiedProtocolUpdateFileContent = JSON.parse(protocolUpdateFileContent);
-	const protocolUpdateParseResult = v.safeParse(ProtocolUpdateSchema, unverifiedProtocolUpdateFileContent, {
-
-	})
+	const protocolUpdateParseResult = v.safeParse(ProtocolUpdateSchema, unverifiedProtocolUpdateFileContent)
 
 	if (!protocolUpdateParseResult.success) {
 		console.error(`Error: Invalid protocol update file content:`);
